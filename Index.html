@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Planner</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            position: relative;
+        }
+        .task-circle {
+            width: 100px;
+            height: 100px;
+            background-color: lightblue;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 20px;
+            cursor: pointer;
+            position: relative;
+        }
+        .subtask-circle {
+            width: 50px;
+            height: 50px;
+            background-color: lightgreen;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            position: absolute;
+        }
+        .dotted-line {
+            position: absolute;
+            border: 1px dotted gray;
+            width: 2px;
+            background-color: transparent;
+            transform-origin: 0% 0%;
+        }
+        .popup {
+            position: fixed;
+            top: 20%;
+            left: 50%;
+            transform: translate(-50%, -20%);
+            width: 400px;
+            background-color: white;
+            border: 1px solid black;
+            padding: 20px;
+            display: none;
+            z-index: 10;
+        }
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            z-index: 5;
+        }
+        #subtaskTaskList li {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+        #subtaskTaskList button {
+            margin-left: 10px;
+        }
+        .traffic-light {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: red;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Task Planner</h1>
+    <button id="createMainTaskBtn">Create New Task</button>
+    
+    <div id="tasksContainer"></div>
+
+    <!-- Popup for subtask task list -->
+    <div id="taskListPopup" class="popup">
+        <h3>Subtask Tasks</h3>
+        <ul id="subtaskTaskList"></ul>
+        <input type="text" id="newSubtaskTaskInput" placeholder="Enter new task">
+        <input type="text" id="taskPersonInput" placeholder="Enter person name">
+        <input type="text" id="taskDescriptionInput" placeholder="Enter description">
+        <button id="addSubtaskTaskBtn">Add Task</button>
+        <br><br>
+        <button id="closeSubtaskTaskPopup">Close</button>
+    </div>
+
+    <!-- Overlay for popup -->
+    <div class="overlay" id="overlay"></div>
+
+    <script>
+        const createMainTaskBtn = document.getElementById('createMainTaskBtn');
+        const tasksContainer = document.getElementById('tasksContainer');
+        const taskListPopup = document.getElementById('taskListPopup');
+        const subtaskTaskList = document.getElementById('subtaskTaskList');
+        const newSubtaskTaskInput = document.getElementById('newSubtaskTaskInput');
+        const taskPersonInput = document.getElementById('taskPersonInput');
+        const taskDescriptionInput = document.getElementById('taskDescriptionInput');
+        const addSubtaskTaskBtn = document.getElementById('addSubtaskTaskBtn');
+        const closeSubtaskTaskPopup = document.getElementById('closeSubtaskTaskPopup');
+        const overlay = document.getElementById('overlay');
+
+        let selectedSubtask = null;
+        let subtaskCount = 0;
+
+        createMainTaskBtn.addEventListener('click', () => {
+            let taskName = prompt('Enter Main Task Name:');
+            if (taskName) {
+                createMainTask(taskName);
+            }
+        });
+
+        function createMainTask(name) {
+            const mainTask = document.createElement('div');
+            mainTask.classList.add('task-circle');
+            mainTask.innerText = name;
+
+            mainTask.addEventListener('dblclick', () => {
+                let subtaskName = prompt('Enter Subtask Name:');
+                if (subtaskName) {
+                    createSubTask(mainTask, subtaskName);
+                }
+            });
+
+            tasksContainer.appendChild(mainTask);
+        }
+
+        function createSubTask(mainTask, name) {
+            const radius = 150;
+            subtaskCount++;
+
+            const angle = (360 / subtaskCount) * (subtaskCount - 1);
+            const radian = angle * (Math.PI / 180);
+
+            const mainTaskRect = mainTask.getBoundingClientRect();
+            const centerX = mainTaskRect.left + mainTaskRect.width / 2;
+            const centerY = mainTaskRect.top + mainTaskRect.height / 2;
+            const subtaskX = centerX + radius * Math.cos(radian) - 25;
+            const subtaskY = centerY + radius * Math.sin(radian) - 25;
+
+            const subtask = document.createElement('div');
+            subtask.classList.add('subtask-circle');
+            subtask.innerText = name;
+            subtask.style.left = `${subtaskX}px`;
+            subtask.style.top = `${subtaskY}px`;
+
+            // Each subtask will have its own task list (stored in memory)
+            subtask.tasks = [];
+
+            // Show the popup on click
+            subtask.addEventListener('click', () => {
+                selectedSubtask = subtask;
+                showSubtaskTaskPopup();
+            });
+
+            tasksContainer.appendChild(subtask);
+
+            const dottedLine = document.createElement('div');
+            dottedLine.classList.add('dotted-line');
+            const dx = subtaskX - centerX + 25;
+            const dy = subtaskY - centerY + 25;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const lineAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+            dottedLine.style.width = `${distance}px`;
+            dottedLine.style.transform = `rotate(${lineAngle}deg)`;
+            dottedLine.style.left = `${centerX}px`;
+            dottedLine.style.top = `${centerY}px`;
+            tasksContainer.appendChild(dottedLine);
+        }
+
+        function showSubtaskTaskPopup() {
+            // Clear previous task list
+            subtaskTaskList.innerHTML = '';
+
+            // Populate with current subtask tasks
+            selectedSubtask.tasks.forEach((task, index) => {
+                const taskItem = document.createElement('li');
+                taskItem.innerHTML = `
+                    <span>${task.name} - ${task.person} - ${task.description}</span>
+                    <button onclick="editSubtaskTask(${index})">Edit</button>
+                    <button onclick="deleteSubtaskTask(${index})">Delete</button>
+                    <div class="traffic-light" style="background-color: ${task.status}" onclick="toggleTrafficLight(${index}, this)"></div>
+                `;
+                subtaskTaskList.appendChild(taskItem);
+            });
+
+            // Show the popup and overlay
+            taskListPopup.style.display = 'block';
+            overlay.style.display = 'block';
+        }
+
+        // Add new task to the selected subtask
+        addSubtaskTaskBtn.addEventListener('click', () => {
+            const newTask = newSubtaskTaskInput.value;
+            const person = taskPersonInput.value;
+            const description = taskDescriptionInput.value;
+            if (newTask && person && description && selectedSubtask) {
+                selectedSubtask.tasks.push({
+                    name: newTask,
+                    person: person,
+                    description: description,
+                    status: 'red'  // Default status
+                });
+                newSubtaskTaskInput.value = '';
+                taskPersonInput.value = '';
+                taskDescriptionInput.value = '';
+                showSubtaskTaskPopup(); // Refresh task list
+            }
+        });
+
+        // Edit subtask task
+        window.editSubtaskTask = (index) => {
+            const newTaskName = prompt('Edit Task:', selectedSubtask.tasks[index].name);
+            const newPerson = prompt('Edit Person:', selectedSubtask.tasks[index].person);
+            const newDescription = prompt('Edit Description:', selectedSubtask.tasks[index].description);
+            if (newTaskName && newPerson && newDescription) {
+                selectedSubtask.tasks[index].name = newTaskName;
+                selectedSubtask.tasks[index].person = newPerson;
+                selectedSubtask.tasks[index].description = newDescription;
+                showSubtaskTaskPopup(); // Refresh task list
+            }
+        };
+
+        // Delete subtask task
+        window.deleteSubtaskTask =
+
+ (index) => {
+            selectedSubtask.tasks.splice(index, 1);
+            showSubtaskTaskPopup(); // Refresh task list
+        };
+
+        // Toggle traffic light status
+        window.toggleTrafficLight = (index, light) => {
+            const statuses = ['red', 'yellow', 'green'];
+            let currentStatus = statuses.indexOf(selectedSubtask.tasks[index].status);
+            currentStatus = (currentStatus + 1) % statuses.length;
+            selectedSubtask.tasks[index].status = statuses[currentStatus];
+            light.style.backgroundColor = statuses[currentStatus];
+        };
+
+        // Close the popup
+        closeSubtaskTaskPopup.addEventListener('click', () => {
+            taskListPopup.style.display = 'none';
+            overlay.style.display = 'none';
+        });
+
+        // Close overlay on click
+        overlay.addEventListener('click', () => {
+            taskListPopup.style.display = 'none';
+            overlay.style.display = 'none';
+        });
+    </script>
+</body>
+</html>
